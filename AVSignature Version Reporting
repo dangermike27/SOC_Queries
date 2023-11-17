@@ -1,0 +1,21 @@
+let StartDate = ago(30d);
+DeviceFileEvents 
+| where Timestamp > StartDate
+// Find signature \ engine update activity
+| where InitiatingProcessFileName =~ 'MpSigStub.exe' and InitiatingProcessCommandLine contains '/stub' and InitiatingProcessCommandLine contains '/payload'
+| summarize Timestamp = arg_max(Timestamp, InitiatingProcessCommandLine) by DeviceId, DeviceName
+| extend SplitCommand = split(InitiatingProcessCommandLine, ' ')
+// Locate stub and payload versions
+| extend EngineVersionLocation = array_index_of(SplitCommand, "/stub") + 1, DefinitionVersionLocation = array_index_of(SplitCommand, "/payload") + 1
+| project Timestamp, DeviceName, DeviceId, AMEngineVersion = SplitCommand[EngineVersionLocation], AntivirusSignatureVersion = SplitCommand[DefinitionVersionLocation]
+| join kind=fullouter (
+    DeviceProcessEvents
+    | where Timestamp > StartDate
+    // Find process creations for MsMpEng from the platform folder
+    | where FileName =~ 'MsMpEng.exe' and FolderPath contains @"\Microsoft\Windows Defender\Platform\"
+    | summarize arg_max(Timestamp, FolderPath) by DeviceId, DeviceName
+    // Go up two levels
+    | project DeviceId, DeviceName, AMServiceVersion = split(FolderPath, '\\')[-2]
+) on DeviceId
+// Re-projecting to make the UI happy
+| project DeviceId, DeviceName, AMEngineVersion, AntivirusSignatureVersion, AMServiceVersion
