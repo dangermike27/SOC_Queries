@@ -1,0 +1,21 @@
+//File Events 5min vor und nach einem bestimmten alert
+
+AlertEvidence
+| where isnotempty(DeviceId) and Title contains "malware"
+| take 1
+| project-rename AlertTimestamp = Timestamp 
+| join kind=inner DeviceFileEvents on DeviceId 
+| where Timestamp between (datetime_add('minute', -5, AlertTimestamp) .. datetime_add('minute', 5, AlertTimestamp))
+| project Timestamp, ActionType,  FileName1, FolderPath1, PreviousFileName, SHA2561
+
+//Called IPs 5min vor und nach einem bestimmten alert
+
+AlertEvidence
+| where isnotempty(DeviceId) and Title contains "malware"
+| take 1
+| project-rename AlertTimestamp = Timestamp 
+| join kind=inner DeviceNetworkEvents on DeviceId 
+| where Timestamp between (datetime_add('minute', -5, AlertTimestamp) .. datetime_add('minute', 5, AlertTimestamp))
+| project Timestamp, RemoteIP1, RemotePort, RemoteUrl1, InitiatingProcessFileName, AlertTimestamp
+| sort by Timestamp
+
