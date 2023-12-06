@@ -1,0 +1,3 @@
+DeviceTvmSoftwareInventory
+| where SoftwareName contains "windows"
+| project DeviceName, SoftwareVendor, SoftwareName, SoftwareVersion
